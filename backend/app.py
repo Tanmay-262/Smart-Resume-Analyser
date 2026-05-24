@@ -1,53 +1,39 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import pdfplumber
-import docx
+import sys
 import os
-from dotenv import load_dotenv
-import google.generativeai as genai
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timezone
-import json
-from werkzeug.security import generate_password_hash, check_password_hash
-from auth import generate_token, token_required
+sys.path.insert(0, os.path.dirname(__file__))
+import traceback
+
+try:
+    from flask import Flask, request, jsonify
+    from flask_cors import CORS
+    import pdfplumber
+    import docx
+    import os
+    from dotenv import load_dotenv
+    import google.generativeai as genai
+    from flask_sqlalchemy import SQLAlchemy
+    from datetime import datetime, timezone
+    import json
+    from werkzeug.security import generate_password_hash, check_password_hash
+    from auth import generate_token, token_required
+except Exception as e:
+    print("FATAL IMPORT ERROR IN app.py:", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    raise e
 
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
+from extensions import db
+from models import User, ResumeAnalysis
+
 # Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+db.init_app(app)
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Database Models
-class User(db.Model):
-    """
-    Represents a user in the database.
-    Stores email, hashed password, and relation to resume analyses.
-    """
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    
-    analyses = db.relationship('ResumeAnalysis', backref='user', lazy=True)
-
-class ResumeAnalysis(db.Model):
-    """
-    Represents a single evaluated resume document in the database.
-    Stores the original filename, parsed text contents, and structured 
-    Gemini JSON response for historical lookups and dashboard rendering.
-    """
-    id = db.Column(db.Integer, primary_key=True)
-    filename = db.Column(db.String(255), nullable=False)
-    raw_text = db.Column(db.Text, nullable=False)
-    analysis_result = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
 # Create tables if they don't exist
 with app.app_context():

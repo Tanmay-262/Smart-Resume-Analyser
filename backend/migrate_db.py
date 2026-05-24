@@ -1,4 +1,5 @@
-from app import app, db
+from app import app
+from extensions import db
 from sqlalchemy import text
 
 with app.app_context():

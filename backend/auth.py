@@ -1,5 +1,8 @@
-import jwt
+import sys
 import os
+sys.path.insert(0, os.path.dirname(__file__))
+
+import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import request, jsonify
@@ -42,8 +45,8 @@ def token_required(f):
             secret = os.getenv("JWT_SECRET_KEY", "default-fallback-super-secret-key-12345")
             data = jwt.decode(token, secret, algorithms=['HS256'])
             
-            # Lazy import to avoid circular dependencies with db models
-            from app import User
+            # Import from models to avoid circular dependencies with app
+            from models import User
             current_user = User.query.filter_by(id=int(data['sub'])).first()
             if not current_user:
                 return jsonify({'error': 'User not found!'}), 401
